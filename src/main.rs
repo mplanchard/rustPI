@@ -1,17 +1,30 @@
+use std::env;
+
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
+
+use dotenv::dotenv;
+
+mod index;
+mod models;
 mod packages;
+mod schema;
 mod sources;
 
+use packages::Package;
 use sources::PackageSource;
+use index::Index;
 
 
 fn main() {
-    let pkg = packages::Package{ name: "foo", version: "bar", location: "file://diesel.toml"};
-    let source = sources::file::FileSource{ pkg };
-    let bytes = source.load().unwrap();
-    let bin_strs: String = bytes.iter().map(|b| format!("{:b}", b)).collect();
-
-    let pkg2 = packages::Package{ name: "foo", version: "bar", location: "file://diesel2.toml"};
-    let res = sources::file::FileSource{ pkg: pkg2 }.save(&*bytes);
-    println!("{:?}", res);
-    println!("{:?}", bin_strs);
+    use std::str;
+    let pkg = Package{name: "foo", version: "bar", location: "file://local.pkg"};
+    println!("{}", pkg.path_prefix());
+    println!("{}", pkg.path());
+    println!("{:?}", pkg.source());
+    println!("{:?}", str::from_utf8(&pkg.source().load().unwrap()).unwrap());
+    pkg.source().save(b"new package text").unwrap();
+    println!("{:?}", str::from_utf8(&pkg.source().load().unwrap()).unwrap());
 }

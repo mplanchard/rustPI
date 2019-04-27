@@ -1,6 +1,7 @@
 // Trait definition for a package source
 
 pub mod file;
+use std::fmt;
 use std::io;
 use crate::packages::{Package};
 
@@ -13,7 +14,7 @@ pub enum SourceError {
 }
 
 pub trait PackageSource<'a> {
-    fn new(pkg: Package<'a>) -> Self;
+    fn new(pkg: &'a Package<'a>) -> Self;
     fn load(&self) -> Result<Box<[u8]>, SourceError>;
     fn save(&self, bytes: &[u8]) -> Result<(), SourceError>;
 }
