@@ -7,38 +7,32 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use diesel::migration::RunMigrationsError;
-use diesel::Connection;
-use diesel::ConnectionError;
-use diesel::ExpressionMethods;
-use diesel::RunQueryDsl;
-use diesel::SqliteConnection;
-use diesel_migrations::embed_migrations;
 use dirs;
+use rusqlite;
 
 use crate::models::{IdxPackage, NewIdxPackage};
 use crate::packages::Package;
-use crate::schema::packages;
 
-embed_migrations!();
 
 pub struct Index {
-    // location: String,
-    connection: SqliteConnection,
+    location: String,
+    connection: Option<rusqlite::Connection>,
 }
 
 impl<'a> Index {
-    pub fn connect() -> Result<Index, IndexError> {
-        let location = index_path();
-        let location_string = location.to_string_lossy();
-        make_index_dir(&location)
-            .map_err(|_| IndexError::PathError(location_string.to_string()))?;
 
-        let connection = SqliteConnection::establish(
-            &location_string
-        ).map_err(IndexError::CouldNotConnect)?;
-        // Ok(Index { location: location_string.to_string(), connection })
-        Ok(Index { connection })
+    pub fn new<T: Into<String>>(location: T) -> Index {
+        Index { location: location.into(), connection: None }
+    }
+
+    pub fn connect(&self) -> Result<(), IndexError> {
+        make_index_dir(&self.location)
+            .map_err(|_| IndexError::PathError(self.location))?;
+
+        let connection = rusqlite::Connection::open(&self.location)
+            .map_err(IndexError::CouldNotConnect)?;
+
+        Ok(())
     }
 
     pub fn migrate(&self) -> Result<(), IndexError> {
@@ -127,8 +121,8 @@ fn index_exists() -> bool {
         .unwrap_or(false)
 }
 
-fn make_index_dir(index_path: &Path) -> io::Result<()> {
-    if let Some(parent) = index_path.parent() {
+fn make_index_dir<T: Into<PathBuf>>(index_path: T) -> io::Result<()> {
+    if let Some(parent) = index_path.into().parent() {
         return fs::DirBuilder::new().recursive(true).create(parent);
     }
     Ok(())
@@ -141,64 +135,26 @@ mod tests {
     use std::fs;
     use std::io;
     use std::time;
+
+    use tempfile;
+
     use super::*;
 
-    fn set_db_path() -> &'static str {
-        let db_path = "resources/testdb.sql";
+    fn set_db_path() -> PathBuf {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let db_path = &tmpdir.path().join("testdb.sql");
         env::set_var("PYPISERVER_INDEX_PATH", db_path);
-        db_path
-    }
-
-    fn teardown() {
-        let db_path = "resources/testdb.sql";
-        if let Some(path) = env::var_os("PYPISERVER_INDEX_PATH") {
-            if path.to_str().unwrap() == db_path {
-                fs::metadata(&db_path[..])
-                    .map(|_| fs::remove_file(db_path).unwrap())
-                    .unwrap();
-            }
-        }
-    }
-
-    #[test]
-    fn connect_makes_db_file_if_not_exists() {
-        let db_path = set_db_path();
-
-        assert!(fs::metadata(db_path).is_err());  // does not exist
-
-        Index::connect().unwrap();
-
-        assert!(fs::metadata(db_path).is_ok());  // will fail if does not exist
-
-        teardown();
-    }
-
-    #[test]
-    fn connect_makes_db_dir_if_not_exists() {
-        let db_dir = "testdir";
-        let db_path = "testdir/testdb.sql";
-        env::set_var("PYPISERVER_INDEX_PATH", db_path);
-
-        assert!(fs::metadata(db_dir).is_err());
-        assert!(fs::metadata(db_path).is_err());
-
-        Index::connect().unwrap();
-
-        let mut checks = Vec::new();
-        for _ in 0..10 {
-            checks.push(fs::metadata(db_path));
-        }
-
-        assert!(checks.iter().any(|r| r.is_ok()));
-
-        fs::remove_dir_all(db_dir).unwrap();
-
+        db_path.to_owned()
     }
 
     #[test]
     fn migration_adds_stuff_to_db() {
-        let db_path = set_db_path();
+        set_db_path();
+        let idx = Index::connect().unwrap();
+        idx.migrate().unwrap();
+        let res = idx.connection.execute("PRAGMA table_info([packages]);").unwrap();
+        println!("{:?}", res);
+        assert!(res == 1);
     }
-
 
 }

@@ -40,17 +40,12 @@
 
 use std::env;
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
-
 use dotenv::dotenv;
 
+mod db;
 mod index;
 mod models;
 mod packages;
-mod schema;
 mod sources;
 
 use packages::Package;
