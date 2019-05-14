@@ -35,11 +35,6 @@ impl<'a> Index {
         Ok(())
     }
 
-    pub fn migrate(&self) -> Result<(), IndexError> {
-        embedded_migrations::run(&self.connection).map_err(IndexError::MigrationFailed)?;
-        Ok(())
-    }
-
     pub fn save_package(&self, pkg: &'a Package) -> Result<(), IndexError> {
         diesel::replace_into(packages::table)
             .values((
@@ -52,6 +47,7 @@ impl<'a> Index {
         Ok(())
     }
 }
+
 
 #[derive(Debug)]
 /// A wrapper for errors that might occur with the index
