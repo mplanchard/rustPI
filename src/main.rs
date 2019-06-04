@@ -43,23 +43,13 @@ use std::env;
 use dotenv::dotenv;
 
 mod db;
+mod domain;
+mod error;
 mod index;
 mod models;
 mod packages;
 mod sources;
 
-use packages::Package;
-use sources::PackageSource;
-use index::Index;
-
-
 fn main() {
-    use std::str;
-    let pkg = Package{name: "foo", version: "bar", location: "file://local.pkg"};
-    println!("{}", pkg.path_prefix());
-    println!("{}", pkg.path());
-    println!("{:?}", pkg.source());
-    println!("{:?}", str::from_utf8(&pkg.source().load().unwrap()).unwrap());
-    pkg.source().save(b"new package text").unwrap();
-    println!("{:?}", str::from_utf8(&pkg.source().load().unwrap()).unwrap());
+    println!("{:?}", domain::model::package::NAME_RE.as_str())
 }
