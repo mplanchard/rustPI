@@ -37,6 +37,45 @@
 //! * Multiple pypiserver instances can effectively share a remote store
 //!   and package index for horizontal scalability
 //!
+//! ## Architecture
+//!
+//! This application is organized largely according to Eric Evans'
+//! [Domain-driven Design].
+//!
+//! ### Domain Models
+//!
+//! PythonPackage: a binary package file
+//! PythonPackageMeta: metadata associated with a Package
+//! PythonPackageRepository: a persistence layer for Packages
+//! PythonPackageMetaRepository: a persistence layer for PackageMeta data
+//!
+//! User: a managed user (aggregate)
+//! Group: a group of users with a default Role or Permissions
+//! UserIdentity: information used to verify a user
+//! Permission: a bitwise combination of
+//!   * View
+//!   * Download
+//!   * Upload - No Replace
+//!   * Upload - Replace
+//!   * Delete
+//! Role: a friendly name for a suite of permissions
+//!
+//! UserRepository: persistence layer for user data
+//!
+//! ### Interfaces
+//!
+//! * CLI
+//! * PythonSimple (pip-compatible API)
+//! * Web
+//!
+//! ### Infrastructure
+//!
+//! PackageRepositoryFS: filesystem storage of packages
+//! PackageMetaRepositorySqlite: Sqlite storage of package metadata
+//! UserRepositorySqlite: Sqlite storage of user data
+//!
+//! [Domain-driven Design]: https://en.wikipedia.org/wiki/Domain-driven_design
+//!
 
 use std::env;
 
@@ -46,10 +85,12 @@ mod db;
 mod domain;
 mod error;
 mod index;
+mod infrastructure;
+mod interface;
 mod models;
 mod packages;
 mod sources;
 
 fn main() {
-    println!("{:?}", domain::model::package::NAME_RE.as_str())
+    println!("{:?}", domain::model::python_package::NAME_RE.as_str())
 }

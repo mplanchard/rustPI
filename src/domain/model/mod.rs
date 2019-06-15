@@ -1,2 +1,1 @@
-pub mod package;
-pub mod repository;
+pub mod python_package;

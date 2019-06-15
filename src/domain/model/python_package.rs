@@ -14,9 +14,9 @@ lazy_static::lazy_static! {
 }
 
 trait PackageRepository {
-    fn get_package<'a>(&self, package: &'a PackageMeta) -> Result<Package, Error>;
-    fn insert_package<'a>(&self, package: &'a Package) -> Result<PackageMeta, Error>;
-    fn save_package<'a>(&self, package: &'a Package) -> Result<PackageMeta, Error>;
+    fn get_package<'a>(&self, package: &'a PythonPackageMetadata) -> Result<PythonPackage, Error>;
+    fn insert_package<'a>(&self, package: &'a PythonPackage) -> Result<PythonPackageMetadata, Error>;
+    fn save_package<'a>(&self, package: &'a PythonPackage) -> Result<PythonPackageMetadata, Error>;
 }
 
 /// The metadata for a package
@@ -25,14 +25,14 @@ trait PackageRepository {
 /// plus its `url`, which indicates which indicates which persistence
 /// repository to retrieve it from and the path within that repository.
 #[derive(Debug)]
-pub struct PackageMeta<'a> {
+pub struct PythonPackageMetadata<'a> {
     pub name: Cow<'a, str>,
     pub version: Cow<'a, str>,
     pub url: Cow<'a, str>,
 }
-impl<'a> PackageMeta<'a> {
+impl<'a> PythonPackageMetadata<'a> {
     pub fn new<S: Into<Cow<'a, str>>>(name: S, version: S, url: S) -> Self {
-        PackageMeta {
+        PythonPackageMetadata {
             name: name.into(),
             version: version.into(),
             url: url.into(),
@@ -41,17 +41,7 @@ impl<'a> PackageMeta<'a> {
 }
 
 #[derive(Debug)]
-pub struct Package<'a> {
-    pub meta: &'a PackageMeta<'a>,
+pub struct PythonPackage<'a> {
+    pub meta: &'a PythonPackageMetadata<'a>,
     pub data: &'a [u8],
 }
-
-#[derive(Debug)]
-pub struct PackageSearch<'a> {
-    pub name: Cow<'a, str>,
-    pub version: Option<Cow<'a, str>>,
-    pub comparator: Option<Cow<'a, str>>,
-}
-// impl<'a> PackageSearch<'a> {
-//     pub fn from<S: AsRef<str>>(search: S) -> Self {}
-// }
