@@ -1,3 +1,3 @@
 //! # Infrastructure
 
-mod web;
+pub mod web;

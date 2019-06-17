@@ -91,6 +91,19 @@ mod models;
 mod packages;
 mod sources;
 
+use lazy_static::lazy_static;
+use warp;
+
+use domain::model::python_package::PythonPackageMetadata;
+use infrastructure::web::warp::routes;
+use interface::web::python_simple::SimpleIndex;
+
+// lazy_static! {
+//         PythonPackageMetadata::new("bar", "1.2", "fs://bar"),
+// }
+
 fn main() {
-    println!("{:?}", domain::model::python_package::NAME_RE.as_str())
+    println!("{:?}", domain::model::python_package::NAME_RE.as_str());
+    let routes = routes();
+    warp::serve(routes).run(([127, 0, 0, 1], 8080));
 }
