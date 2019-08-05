@@ -4,6 +4,7 @@
 use crate::error;
 
 /// Metadata about a package
+#[derive(Debug)]
 pub struct PkgMeta {
     pub name: String,
     pub version: String,
@@ -25,6 +26,7 @@ impl PkgMeta {
 }
 
 /// A package
+#[derive(Debug)]
 pub struct Pkg<'a> {
     meta: &'a PkgMeta,
     bytes: Box<[u8]>,

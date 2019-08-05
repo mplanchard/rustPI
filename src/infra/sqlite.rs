@@ -66,9 +66,9 @@ impl model::PkgMetaRepo for SqliteRepo {
         self.conn.execute_named(
             "DELETE FROM packages
                 WHERE
-                    name = ':name'
-                    AND version = ':version'
-                    AND location = ':location'",
+                    name = :name
+                    AND version = :version
+                    AND location = :location",
             rusqlite::named_params! {
                 ":name": meta.name,
                 ":version": meta.version,
@@ -84,9 +84,8 @@ impl model::PkgMetaRepo for SqliteRepo {
     ) -> Result<Option<PkgMeta>, error::Error> {
         self.conn
             .query_row_named(
-                "SELECT name, version, location FROM packages WHERE
-                name = ':name'
-                AND version = ':version'",
+                "SELECT name, version, location FROM packages
+                    WHERE name = :name AND version = :version",
                 rusqlite::named_params! {
                     ":name": name.as_ref(), ":version": ver.as_ref()
                 },
@@ -108,7 +107,7 @@ impl model::PkgMetaRepo for SqliteRepo {
             .prepare(
                 "
                 SELECT name, version, location FROM packages
-                WHERE name = ':name'
+                WHERE name = :name
             ",
             )?
             .query_map_named(
@@ -122,14 +121,14 @@ impl model::PkgMetaRepo for SqliteRepo {
 
 #[cfg(test)]
 mod tests {
-    use tempfile::{NamedTempFile, TempDir};
+    use tempfile::NamedTempFile;
 
     use crate::domain::model::PkgMetaRepo;
 
     use super::*;
 
     #[test]
-    fn create_get_delete() {
+    fn test_create_get() {
         let file = NamedTempFile::new().unwrap();
         let repo = SqliteRepo::new(file.path()).unwrap();
         let pkgmeta = PkgMeta::new("foo", "1.0", "fs://here");
@@ -137,6 +136,59 @@ mod tests {
         let retrieved = repo.get(&pkgmeta.name, &pkgmeta.version).unwrap().unwrap();
         assert_eq!(retrieved.location, pkgmeta.location);
         repo.delete(&pkgmeta).unwrap();
+    }
+
+    #[test]
+    fn test_delete() {
+        let file = NamedTempFile::new().unwrap();
+        let repo = SqliteRepo::new(file.path()).unwrap();
+        let pkgmeta = PkgMeta::new("foo", "1.0", "fs://here");
+        repo.add(&pkgmeta).unwrap();
+        let first = repo.get(&pkgmeta.name, &pkgmeta.version).unwrap();
+        assert!(first.is_some());
+        repo.delete(&pkgmeta).unwrap();
+        let second = repo.get(&pkgmeta.name, &pkgmeta.version).unwrap();
+        assert!(second.is_none());
+    }
+
+    #[test]
+    fn test_get_all() {
+        let file = NamedTempFile::new().unwrap();
+        let repo = SqliteRepo::new(file.path()).unwrap();
+        let pkg1 = PkgMeta::new("foo", "1.0", "fs://here");
+        let pkg2 = PkgMeta::new("bar", "1.0", "fs://there");
+        let pkg3 = PkgMeta::new("baz", "1.0", "fs://everywhere");
+        repo.add(&pkg1).unwrap();
+        repo.add(&pkg2).unwrap();
+        repo.add(&pkg3).unwrap();
+        let pkgs = repo.get_all().unwrap();
+        assert_eq!(
+            pkgs.iter().map(|p| &p.name).collect::<Vec<&String>>(),
+            vec![pkg1, pkg2, pkg3]
+                .iter()
+                .map(|p| &p.name)
+                .collect::<Vec<&String>>()
+        );
+    }
+
+    #[test]
+    fn test_with_name() {
+        let file = NamedTempFile::new().unwrap();
+        let repo = SqliteRepo::new(file.path()).unwrap();
+        let pkg1 = PkgMeta::new("foo", "1.0", "fs://here");
+        let pkg2 = PkgMeta::new("foo", "1.1", "fs://there");
+        let pkg3 = PkgMeta::new("foo", "2.0", "fs://everywhere");
+        repo.add(&pkg1).unwrap();
+        repo.add(&pkg2).unwrap();
+        repo.add(&pkg3).unwrap();
+        let pkgs = repo.with_name("foo").unwrap();
+        assert_eq!(
+            pkgs.iter().map(|p| &p.name).collect::<Vec<&String>>(),
+            vec![pkg1, pkg2, pkg3]
+                .iter()
+                .map(|p| &p.name)
+                .collect::<Vec<&String>>()
+        );
     }
 
 }
