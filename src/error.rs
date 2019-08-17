@@ -5,21 +5,33 @@
 //!
 
 use std::error;
-use std::fmt;
 
+use std::fmt;
+use std::io;
 use rusqlite;
 
 #[derive(Debug)]
-pub enum Errors {
+pub enum ErrType {
     IO,
     DB,
+    Usage,
 }
 
 #[derive(Debug)]
 pub struct Error {
-    kind: Errors,
-    source: Option<Box<error::Error>>,
-    message: Option<String>,
+    pub kind: ErrType,
+    pub source: Option<Box<error::Error>>,
+    pub message: Option<String>,
+}
+impl Error {
+    /// Construct a custom error.
+    pub fn new<S: Into<String>>(kind: ErrType, message: S) -> Self {
+        Error {
+            kind,
+            source: None,
+            message: Some(message.into()),
+        }
+    }
 }
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
@@ -40,9 +52,18 @@ impl fmt::Display for Error {
 impl From<rusqlite::Error> for Error {
     fn from(err: rusqlite::Error) -> Self {
         Self {
-            kind: Errors::DB,
+            kind: ErrType::DB,
             source: Some(Box::from(err)),
-            message: None,
+            message: Some("Error during sqlite operation".into()),
+        }
+    }
+}
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Self {
+            kind: ErrType::IO,
+            source: Some(Box::from(err)),
+            message: Some("Error during IO".into()),
         }
     }
 }

@@ -8,38 +8,38 @@ use crate::domain::model;
 use crate::domain::model::PkgMeta;
 use crate::error;
 
-const UP_MIGRATION: &'static str = "
+const IDX_UP_MIGRATION: &'static str = "
     BEGIN;
-    CREATE TABLE IF NOT EXISTS packages (
+    CREATE TABLE IF NOT EXISTS pkg_meta (
     id INTEGER NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     version TEXT NOT NULL,
     location TEXT NOT NULL
     );
 
-    CREATE UNIQUE INDEX idx_name_version ON packages (name, version);
+    CREATE UNIQUE INDEX idx_name_version ON pkg_meta (name, version);
     COMMIT;
     ";
 
-const DOWN_MIGRATION: &'static str = "
+const IDX_DOWN_MIGRATION: &'static str = "
     BEGIN;
     DROP INDEX IF EXISTS idx_name_version;
-    DROP TABLE IF EXISTS packages;
+    DROP TABLE IF EXISTS pkg_meta;
     COMMIT;
     ";
 
 
-pub struct SqliteRepo {
+pub struct SqlitePkgMetaRepo {
     conn: rusqlite::Connection,
 }
-impl SqliteRepo {
+impl SqlitePkgMetaRepo {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, error::Error> {
         let conn = rusqlite::Connection::open_with_flags(
             path,
             rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_CREATE,
         )?;
-        conn.execute_batch(UP_MIGRATION)?;
-        Ok(Self { conn })
+        conn.execute_batch(IDX_UP_MIGRATION)?;
+        Ok(SqlitePkgMetaRepo { conn })
     }
     fn pkg_meta_from_row(row: &rusqlite::Row) -> Result<PkgMeta, rusqlite::Error> {
         Ok(PkgMeta::new(
@@ -49,10 +49,10 @@ impl SqliteRepo {
         ))
     }
 }
-impl model::PkgMetaRepo for SqliteRepo {
+impl model::PkgMetaRepo for SqlitePkgMetaRepo {
     fn add(&self, meta: &PkgMeta) -> Result<(), error::Error> {
         self.conn.execute_named(
-            "INSERT INTO packages (name, version, location)
+            "INSERT INTO pkg_meta (name, version, location)
                 VALUES (:name, :version, :location)",
             rusqlite::named_params! {
                 ":name": meta.name,
@@ -64,7 +64,7 @@ impl model::PkgMetaRepo for SqliteRepo {
     }
     fn delete(&self, meta: &PkgMeta) -> Result<(), error::Error> {
         self.conn.execute_named(
-            "DELETE FROM packages
+            "DELETE FROM pkg_meta
                 WHERE
                     name = :name
                     AND version = :version
@@ -84,7 +84,7 @@ impl model::PkgMetaRepo for SqliteRepo {
     ) -> Result<Option<PkgMeta>, error::Error> {
         self.conn
             .query_row_named(
-                "SELECT name, version, location FROM packages
+                "SELECT name, version, location FROM pkg_meta
                     WHERE name = :name AND version = :version",
                 rusqlite::named_params! {
                     ":name": name.as_ref(), ":version": ver.as_ref()
@@ -97,7 +97,7 @@ impl model::PkgMetaRepo for SqliteRepo {
     fn get_all(&self) -> Result<Vec<PkgMeta>, error::Error> {
         Ok(self
             .conn
-            .prepare("SELECT name, version, location FROM packages")?
+            .prepare("SELECT name, version, location FROM pkg_meta")?
             .query_map(rusqlite::NO_PARAMS, Self::pkg_meta_from_row)?
             .collect::<Result<Vec<PkgMeta>, rusqlite::Error>>()?)
     }
@@ -106,7 +106,7 @@ impl model::PkgMetaRepo for SqliteRepo {
             .conn
             .prepare(
                 "
-                SELECT name, version, location FROM packages
+                SELECT name, version, location FROM pkg_meta
                 WHERE name = :name
             ",
             )?
@@ -120,7 +120,7 @@ impl model::PkgMetaRepo for SqliteRepo {
 
 
 #[cfg(test)]
-mod tests {
+mod sqlite_pkgmetarepo_tests {
     use tempfile::NamedTempFile;
 
     use crate::domain::model::PkgMetaRepo;
@@ -130,7 +130,7 @@ mod tests {
     #[test]
     fn test_create_get() {
         let file = NamedTempFile::new().unwrap();
-        let repo = SqliteRepo::new(file.path()).unwrap();
+        let repo = SqlitePkgMetaRepo::new(file.path()).unwrap();
         let pkgmeta = PkgMeta::new("foo", "1.0", "fs://here");
         repo.add(&pkgmeta).unwrap();
         let retrieved = repo.get(&pkgmeta.name, &pkgmeta.version).unwrap().unwrap();
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn test_delete() {
         let file = NamedTempFile::new().unwrap();
-        let repo = SqliteRepo::new(file.path()).unwrap();
+        let repo = SqlitePkgMetaRepo::new(file.path()).unwrap();
         let pkgmeta = PkgMeta::new("foo", "1.0", "fs://here");
         repo.add(&pkgmeta).unwrap();
         let first = repo.get(&pkgmeta.name, &pkgmeta.version).unwrap();
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_get_all() {
         let file = NamedTempFile::new().unwrap();
-        let repo = SqliteRepo::new(file.path()).unwrap();
+        let repo = SqlitePkgMetaRepo::new(file.path()).unwrap();
         let pkg1 = PkgMeta::new("foo", "1.0", "fs://here");
         let pkg2 = PkgMeta::new("bar", "1.0", "fs://there");
         let pkg3 = PkgMeta::new("baz", "1.0", "fs://everywhere");
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn test_with_name() {
         let file = NamedTempFile::new().unwrap();
-        let repo = SqliteRepo::new(file.path()).unwrap();
+        let repo = SqlitePkgMetaRepo::new(file.path()).unwrap();
         let pkg1 = PkgMeta::new("foo", "1.0", "fs://here");
         let pkg2 = PkgMeta::new("foo", "1.1", "fs://there");
         let pkg3 = PkgMeta::new("foo", "2.0", "fs://everywhere");

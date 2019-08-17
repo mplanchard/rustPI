@@ -54,6 +54,7 @@ pub trait PkgMetaRepo {
 pub trait PkgRepo {
     fn add(&self, pkg: Pkg) -> Result<PkgMeta, error::Error>;
     fn delete(&self, meta: &PkgMeta) -> Result<(), error::Error>;
-    fn get(&self, meta: &PkgMeta) -> Option<Pkg>;
+    fn get(&self, meta: &PkgMeta) -> Result<Option<Pkg>, error::Error>;
+    fn get_all(&self) -> Iterator<Item = Result<Pkg, error::Error>>;
     fn replace(&self, meta: &PkgMeta, pkg: Pkg) -> Result<PkgMeta, error::Error>;
 }
