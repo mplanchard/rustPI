@@ -15,7 +15,7 @@ regex = "~1.1.6"
 warp = "~0.1.12"
 
 [dependencies.rusqlite]
-version = "~0.18.0"
+version = "~0.23.0"
 features = ["bundled"]
 
 [dev-dependencies]
